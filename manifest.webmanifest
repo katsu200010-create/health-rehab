@@ -1,0 +1,28 @@
+{
+  "name": "健康康复 · 训练计划",
+  "short_name": "健康康复",
+  "description": "个人健康康复训练计划：每日动作安排、组间计时与语音提示、训练记录。数据仅保存在本机浏览器。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f7f8",
+  "theme_color": "#f7f7f8",
+  "categories": ["health", "fitness", "medical"],
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

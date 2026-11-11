@@ -1,0 +1,12 @@
+# 系统与编辑器杂项
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 本地预览
+.vscode/
+.idea/
+
+# 数据备份（含个人训练记录，不要提交）
+健康康复-数据备份-*.json
+*.backup.json
