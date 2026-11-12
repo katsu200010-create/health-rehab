@@ -2277,12 +2277,12 @@ function renderTraining(){
         showToast("已取消勾选");
       }
       save();
-      /* V16 修正：手动勾选不再联动计时器进度条。
-         旧代码在勾选后调用 setPositionFromElapsed()，而它会执行 syncTrainingRecords()，
-         用「计时进度」覆盖当天的完成记录：
-           - 勾第 3 个动作 → 记录先写入，随后被计时进度抹掉，反而把前面没勾的补勾上；
-           - 于是出现「勾了不显示 / 勾后面的把前面勾上 / 有的怎么都勾不上」。
-         手动勾选只改记录本身，计时器与勾选各自独立。 */
+      /* V19：勾选第 i 个动作 = 「练到第 i 个为止」
+           - 勾选：第 1..i 个自动补勾，进度条/倒计时跳到第 i 个最后一组结束的位置；
+           - 取消勾选：第 i..N 个全部取消勾选，倒计时回到第 i 个开始之前；
+           - 记录与计时进度由这里统一写入，timer 自己的补勾逻辑不会再打架。 */
+      cascadeCheck(i, checkbox.checked);
+      save();
       renderTraining();
     });
   });
@@ -4044,6 +4044,67 @@ function resetTimer(){
   syncTrainingRecords();
 }
 let progressDragging=false;
+/* V18：勾选动作与进度条联动（只挪进度条，不改动任何完成记录） */
+function exerciseBounds(itemIndex){
+  let startElapsed=0,completionElapsed=-1,seen=0;
+  for(let i=0;i<timerQueue.length;i++){
+    const qi=timerQueue[i];
+    const isThis=qi.type==="action"&&qi.itemIndex===itemIndex;
+    if(isThis&&completionElapsed<0) startElapsed=seen;
+    if(isThis) completionElapsed=seen+qi.seconds;
+    seen+=qi.seconds;
+  }
+  return {startElapsed,completionElapsed};
+}
+function setTimerPositionSilently(elapsed){
+  if(!timerQueue.length) return;
+  const total=getTotalSeconds();
+  if(elapsed<=0){timerIndex=0;timerSeconds=timerQueue[0].seconds;}
+  else if(elapsed>=total){timerIndex=timerQueue.length-1;timerSeconds=0;}
+  else{
+    let remaining=elapsed,placed=false;
+    for(let i=0;i<timerQueue.length;i++){
+      if(remaining<timerQueue[i].seconds){timerIndex=i;timerSeconds=timerQueue[i].seconds-remaining;placed=true;break;}
+      remaining-=timerQueue[i].seconds;
+    }
+    if(!placed){timerIndex=timerQueue.length-1;timerSeconds=0;}
+  }
+  /* 正在跑的时候同步挪结束时间戳，否则下一次 tick 会把位置拉回去 */
+  if(timerId) timerDeadline=Date.now()+Math.max(0,timerSeconds)*1000;
+  updateTimer();updateProgressBar();
+  snapshotTimerFor(currentTimerDay());
+}
+function jumpProgressForExercise(itemIndex,checked){
+  if(!timerQueue.length) return;
+  const b=exerciseBounds(itemIndex);
+  if(b.completionElapsed<0) return;
+  if(checked){
+    /* 勾选：跳到该动作最后一组结束（只往前，不把进度往回拉） */
+    if(getElapsedSeconds()<b.completionElapsed) setTimerPositionSilently(b.completionElapsed);
+  }else{
+    /* 取消勾选：倒计时回到该动作开始之前 */
+    setTimerPositionSilently(b.startElapsed);
+  }
+}
+/* V19：勾选第 i 个 = 练到第 i 个为止 —— 前面全部补勾；取消 = 第 i 个及之后全部取消 */
+function cascadeCheck(itemIndex,checked){
+  const day=state.selectedDay||todayDay(),p=PLAN[day];
+  if(!p) return;
+  const d=today();
+  p.items.forEach((_,j)=>{
+    const key=`${day}-${j}`;
+    const isDone=(state.trainingRecords[key]||[]).includes(d);
+    if(checked&&j<=itemIndex&&!isDone){
+      state.trainingRecords[key]=state.trainingRecords[key]||[];
+      if(!state.trainingRecords[key].includes(d)) state.trainingRecords[key].push(d);
+    }
+    if(!checked&&j>=itemIndex&&isDone){
+      state.trainingRecords[key]=(state.trainingRecords[key]||[]).filter(x=>x!==d);
+      if(state.trainingRecords[key].length===0) delete state.trainingRecords[key];
+    }
+  });
+  jumpProgressForExercise(itemIndex,checked);
+}
 function setPositionFromElapsed(elapsed){
   if(!timerQueue.length) return;
   const total=getTotalSeconds();
