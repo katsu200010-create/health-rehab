@@ -7,7 +7,7 @@
  * 想强制所有人更新到新版本：把 VERSION 改一下（如 v2）再推送即可，
  * 旧缓存会在 activate 阶段自动清掉。
  */
-const VERSION = "v3";
+const VERSION = "v4";
 const CACHE = "rehab-training-" + VERSION;
 
 const PRECACHE = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg"];
